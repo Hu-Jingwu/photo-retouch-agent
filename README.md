@@ -94,6 +94,6 @@ under 0.5° error. It also grades the crop, colour and retouch with the same rul
 
 ## Licence and credits
 
-Code: MIT (see [LICENSE](LICENSE)). Film LUTs: Pat David, CC BY-SA 4.0. Style samples: see
+Code: MIT (see [LICENSE](LICENSE); third-party content in [NOTICE.md](NOTICE.md)). Film LUTs: Pat David, CC BY-SA 4.0. Style samples: see
 [samples/SOURCES.md](samples/SOURCES.md). Models: OpenCV Zoo YuNet (MIT) and Google MediaPipe (Apache 2.0),
 downloaded by the setup script.

@@ -12,7 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "github_release"
 
-FILES = ["README.md", "LICENSE", "requirements.txt", ".env.example", ".gitignore", "agent.py",
+FILES = ["README.md", "LICENSE", "NOTICE.md", "requirements.txt", ".env.example", ".gitignore", "agent.py",
          "samples/README.md", "samples/SOURCES.md", "samples/film.jpg", "samples/epic_landscape.jpg",
          "luts/SOURCE_README.md", "luts/profiles.json", "models/.gitkeep"]
 GLOBS = ["agent_tools/*.py", "evals/*.py", "tests/*.py", "scripts/*.py", "docs/*.md", "docs/images/*.jpg",
