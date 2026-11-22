@@ -1,0 +1,37 @@
+# secrets and environment
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+
+# private photos and everything made from them
+data/
+testnew/
+TEST-c/
+runs/
+outputs/
+*.NEF
+*.nef
+*.dng
+*.tif
+*.tiff
+/*.jpg
+/*.png
+
+# labels for private photos
+evals/ground_truth.json
+evals/label_overrides.json
+
+# style samples: only the openly licensed ones are published
+samples/*
+!samples/README.md
+!samples/SOURCES.md
+!samples/film.jpg
+!samples/epic_landscape.jpg
+
+# downloaded by scripts/setup_models.py
+models/*
+!models/.gitkeep
+
+# local upload copy
+github_release/

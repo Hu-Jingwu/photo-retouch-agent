@@ -1,0 +1,7 @@
+opencv-python>=4.8
+numpy>=1.26
+rawpy>=0.19
+mediapipe>=0.10.14
+openai>=1.40
+python-dotenv>=1.0
+pytest>=8

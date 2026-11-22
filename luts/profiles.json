@@ -1,0 +1,434 @@
+{
+ "fuji_provia_100f": {
+  "name": "fuji_provia_100f",
+  "summary": "normal contrast, saturated, green shifted +22 deg, magenta shifted +22 deg",
+  "midtone_contrast_x": 1.12,
+  "black_L": 3.6,
+  "white_L": 95.3,
+  "mid_grey_a_b": [
+   0.31,
+   -0.81
+  ],
+  "mean_saturation_x": 1.12,
+  "bands": {
+   "red": {
+    "hue_shift_deg": 1.7,
+    "saturation_x": 1.22,
+    "brightness_x": 1.06
+   },
+   "orange": {
+    "hue_shift_deg": -8.2,
+    "saturation_x": 0.99,
+    "brightness_x": 1.09
+   },
+   "yellow": {
+    "hue_shift_deg": -7.7,
+    "saturation_x": 0.74,
+    "brightness_x": 1.12
+   },
+   "green": {
+    "hue_shift_deg": 21.6,
+    "saturation_x": 0.96,
+    "brightness_x": 1.06
+   },
+   "aqua": {
+    "hue_shift_deg": 0.4,
+    "saturation_x": 1.4,
+    "brightness_x": 1.02
+   },
+   "blue": {
+    "hue_shift_deg": -2.4,
+    "saturation_x": 1.17,
+    "brightness_x": 0.73
+   },
+   "purple": {
+    "hue_shift_deg": 11.5,
+    "saturation_x": 1.15,
+    "brightness_x": 0.72
+   },
+   "magenta": {
+    "hue_shift_deg": 21.5,
+    "saturation_x": 1.34,
+    "brightness_x": 0.96
+   }
+  }
+ },
+ "fuji_velvia_50": {
+  "name": "fuji_velvia_50",
+  "summary": "normal contrast, very saturated, green shifted +23 deg, purple shifted +13 deg",
+  "midtone_contrast_x": 1.12,
+  "black_L": 1.7,
+  "white_L": 93.9,
+  "mid_grey_a_b": [
+   0.33,
+   -0.81
+  ],
+  "mean_saturation_x": 1.29,
+  "bands": {
+   "red": {
+    "hue_shift_deg": -7.5,
+    "saturation_x": 1.36,
+    "brightness_x": 0.98
+   },
+   "orange": {
+    "hue_shift_deg": -7.2,
+    "saturation_x": 1.05,
+    "brightness_x": 0.97
+   },
+   "yellow": {
+    "hue_shift_deg": 1.3,
+    "saturation_x": 0.91,
+    "brightness_x": 0.95
+   },
+   "green": {
+    "hue_shift_deg": 23.2,
+    "saturation_x": 1.56,
+    "brightness_x": 1.02
+   },
+   "aqua": {
+    "hue_shift_deg": -5.2,
+    "saturation_x": 1.59,
+    "brightness_x": 1.02
+   },
+   "blue": {
+    "hue_shift_deg": 0.4,
+    "saturation_x": 1.15,
+    "brightness_x": 0.81
+   },
+   "purple": {
+    "hue_shift_deg": 12.7,
+    "saturation_x": 1.24,
+    "brightness_x": 0.82
+   },
+   "magenta": {
+    "hue_shift_deg": 11.1,
+    "saturation_x": 1.46,
+    "brightness_x": 0.98
+   }
+  }
+ },
+ "fuji_astia_100f": {
+  "name": "fuji_astia_100f",
+  "summary": "normal contrast, natural saturation, green shifted -34 deg, purple shifted +33 deg",
+  "midtone_contrast_x": 1.04,
+  "black_L": 3.3,
+  "white_L": 93.0,
+  "mid_grey_a_b": [
+   0.3,
+   0.42
+  ],
+  "mean_saturation_x": 1.02,
+  "bands": {
+   "red": {
+    "hue_shift_deg": -3.8,
+    "saturation_x": 1.26,
+    "brightness_x": 0.99
+   },
+   "orange": {
+    "hue_shift_deg": -11.4,
+    "saturation_x": 0.91,
+    "brightness_x": 1.08
+   },
+   "yellow": {
+    "hue_shift_deg": -19.8,
+    "saturation_x": 1.02,
+    "brightness_x": 1.27
+   },
+   "green": {
+    "hue_shift_deg": -33.6,
+    "saturation_x": 0.88,
+    "brightness_x": 1.0
+   },
+   "aqua": {
+    "hue_shift_deg": 0.2,
+    "saturation_x": 0.86,
+    "brightness_x": 0.99
+   },
+   "blue": {
+    "hue_shift_deg": 4.8,
+    "saturation_x": 0.88,
+    "brightness_x": 0.66
+   },
+   "purple": {
+    "hue_shift_deg": 33.1,
+    "saturation_x": 0.97,
+    "brightness_x": 0.62
+   },
+   "magenta": {
+    "hue_shift_deg": 32.0,
+    "saturation_x": 1.36,
+    "brightness_x": 0.91
+   }
+  }
+ },
+ "fuji_superia_reala_100": {
+  "name": "fuji_superia_reala_100",
+  "summary": "normal contrast, natural saturation, green shifted -22 deg, purple shifted +21 deg",
+  "midtone_contrast_x": 0.96,
+  "black_L": 5.2,
+  "white_L": 91.9,
+  "mid_grey_a_b": [
+   0.58,
+   -0.41
+  ],
+  "mean_saturation_x": 1.02,
+  "bands": {
+   "red": {
+    "hue_shift_deg": -7.4,
+    "saturation_x": 1.2,
+    "brightness_x": 1.05
+   },
+   "orange": {
+    "hue_shift_deg": -8.3,
+    "saturation_x": 0.92,
+    "brightness_x": 1.08
+   },
+   "yellow": {
+    "hue_shift_deg": -11.2,
+    "saturation_x": 1.01,
+    "brightness_x": 1.14
+   },
+   "green": {
+    "hue_shift_deg": -21.7,
+    "saturation_x": 1.09,
+    "brightness_x": 1.03
+   },
+   "aqua": {
+    "hue_shift_deg": 0.3,
+    "saturation_x": 0.88,
+    "brightness_x": 1.05
+   },
+   "blue": {
+    "hue_shift_deg": 10.1,
+    "saturation_x": 0.87,
+    "brightness_x": 0.86
+   },
+   "purple": {
+    "hue_shift_deg": 21.1,
+    "saturation_x": 0.92,
+    "brightness_x": 0.82
+   },
+   "magenta": {
+    "hue_shift_deg": 20.6,
+    "saturation_x": 1.23,
+    "brightness_x": 1.02
+   }
+  }
+ },
+ "fuji_superia_200": {
+  "name": "fuji_superia_200",
+  "summary": "normal contrast, saturated, green shifted -21 deg, yellow shifted -12 deg",
+  "midtone_contrast_x": 1.05,
+  "black_L": 3.2,
+  "white_L": 93.0,
+  "mid_grey_a_b": [
+   1.39,
+   0.2
+  ],
+  "mean_saturation_x": 1.1,
+  "bands": {
+   "red": {
+    "hue_shift_deg": -4.1,
+    "saturation_x": 1.43,
+    "brightness_x": 0.95
+   },
+   "orange": {
+    "hue_shift_deg": -3.4,
+    "saturation_x": 1.09,
+    "brightness_x": 1.1
+   },
+   "yellow": {
+    "hue_shift_deg": -12.4,
+    "saturation_x": 1.03,
+    "brightness_x": 1.2
+   },
+   "green": {
+    "hue_shift_deg": -20.9,
+    "saturation_x": 0.87,
+    "brightness_x": 1.14
+   },
+   "aqua": {
+    "hue_shift_deg": 4.9,
+    "saturation_x": 0.71,
+    "brightness_x": 1.18
+   },
+   "blue": {
+    "hue_shift_deg": 4.3,
+    "saturation_x": 1.04,
+    "brightness_x": 0.96
+   },
+   "purple": {
+    "hue_shift_deg": 11.2,
+    "saturation_x": 1.16,
+    "brightness_x": 0.84
+   },
+   "magenta": {
+    "hue_shift_deg": 9.2,
+    "saturation_x": 1.45,
+    "brightness_x": 0.84
+   }
+  }
+ },
+ "fuji_400h": {
+  "name": "fuji_400h",
+  "summary": "normal contrast, natural saturation, magenta tint, blue shifted +23 deg, purple shifted +18 deg",
+  "midtone_contrast_x": 1.03,
+  "black_L": 4.0,
+  "white_L": 94.3,
+  "mid_grey_a_b": [
+   2.2,
+   1.97
+  ],
+  "mean_saturation_x": 0.92,
+  "bands": {
+   "red": {
+    "hue_shift_deg": 7.1,
+    "saturation_x": 1.12,
+    "brightness_x": 1.18
+   },
+   "orange": {
+    "hue_shift_deg": 5.3,
+    "saturation_x": 1.21,
+    "brightness_x": 1.12
+   },
+   "yellow": {
+    "hue_shift_deg": -1.1,
+    "saturation_x": 0.95,
+    "brightness_x": 1.03
+   },
+   "green": {
+    "hue_shift_deg": 5.8,
+    "saturation_x": 0.94,
+    "brightness_x": 1.02
+   },
+   "aqua": {
+    "hue_shift_deg": -1.1,
+    "saturation_x": 0.64,
+    "brightness_x": 1.05
+   },
+   "blue": {
+    "hue_shift_deg": 22.8,
+    "saturation_x": 0.88,
+    "brightness_x": 1.03
+   },
+   "purple": {
+    "hue_shift_deg": 18.5,
+    "saturation_x": 0.82,
+    "brightness_x": 1.05
+   },
+   "magenta": {
+    "hue_shift_deg": 12.5,
+    "saturation_x": 0.81,
+    "brightness_x": 1.18
+   }
+  }
+ },
+ "fuji_160c": {
+  "name": "fuji_160c",
+  "summary": "normal contrast, natural saturation, magenta tint, blue shifted +21 deg, purple shifted +16 deg",
+  "midtone_contrast_x": 1.05,
+  "black_L": 3.7,
+  "white_L": 94.1,
+  "mid_grey_a_b": [
+   2.03,
+   2.5
+  ],
+  "mean_saturation_x": 0.96,
+  "bands": {
+   "red": {
+    "hue_shift_deg": 6.8,
+    "saturation_x": 1.1,
+    "brightness_x": 1.16
+   },
+   "orange": {
+    "hue_shift_deg": 4.2,
+    "saturation_x": 1.14,
+    "brightness_x": 1.1
+   },
+   "yellow": {
+    "hue_shift_deg": 1.4,
+    "saturation_x": 1.02,
+    "brightness_x": 1.03
+   },
+   "green": {
+    "hue_shift_deg": 6.2,
+    "saturation_x": 1.13,
+    "brightness_x": 1.03
+   },
+   "aqua": {
+    "hue_shift_deg": 0.7,
+    "saturation_x": 0.74,
+    "brightness_x": 1.06
+   },
+   "blue": {
+    "hue_shift_deg": 20.6,
+    "saturation_x": 0.9,
+    "brightness_x": 1.04
+   },
+   "purple": {
+    "hue_shift_deg": 15.8,
+    "saturation_x": 0.83,
+    "brightness_x": 1.07
+   },
+   "magenta": {
+    "hue_shift_deg": 10.7,
+    "saturation_x": 0.8,
+    "brightness_x": 1.17
+   }
+  }
+ },
+ "fuji_neopan_acros_100": {
+  "name": "fuji_neopan_acros_100",
+  "summary": "normal contrast, black and white",
+  "midtone_contrast_x": 1.07,
+  "black_L": 3.4,
+  "white_L": 91.7,
+  "mid_grey_a_b": [
+   0.02,
+   0.0
+  ],
+  "mean_saturation_x": 0.0,
+  "bands": {
+   "red": {
+    "hue_shift_deg": 0.0,
+    "saturation_x": 0.0,
+    "brightness_x": 0.44
+   },
+   "orange": {
+    "hue_shift_deg": -30.0,
+    "saturation_x": 0.0,
+    "brightness_x": 0.67
+   },
+   "yellow": {
+    "hue_shift_deg": -60.0,
+    "saturation_x": 0.0,
+    "brightness_x": 0.9
+   },
+   "green": {
+    "hue_shift_deg": -120.0,
+    "saturation_x": 0.0,
+    "brightness_x": 0.85
+   },
+   "aqua": {
+    "hue_shift_deg": 180.0,
+    "saturation_x": 0.0,
+    "brightness_x": 0.88
+   },
+   "blue": {
+    "hue_shift_deg": 120.0,
+    "saturation_x": 0.0,
+    "brightness_x": 0.36
+   },
+   "purple": {
+    "hue_shift_deg": 90.0,
+    "saturation_x": 0.0,
+    "brightness_x": 0.41
+   },
+   "magenta": {
+    "hue_shift_deg": 60.0,
+    "saturation_x": 0.0,
+    "brightness_x": 0.49
+   }
+  }
+ }
+}
