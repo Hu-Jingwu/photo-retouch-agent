@@ -35,3 +35,6 @@ models/*
 
 # local upload copy
 github_release/
+
+# downloaded demo inputs and their agent runs
+demo/
