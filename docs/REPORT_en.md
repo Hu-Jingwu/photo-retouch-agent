@@ -57,13 +57,13 @@ operations. Code is the opposite. An agent puts each where it is strong.
 | `agent_tools/color.py` | ~990 | C: measurements, the colour pipeline, Fuji LUTs, reference matching, face shift |
 | `agent_tools/styles.py` | ~205 | Style memory: 11 sample styles and the judge |
 | `agent_tools/people.py` | ~590 | D: MediaPipe masks, relight, smoothing, slimming, retouch checks |
-| `agent_tools/face.py` | ~485 | Library only (the face sub-agent was removed): PixCake-style face tools |
+| `agent_tools/face.py` | ~485 | Face tools (skin, shape, eyes, teeth), used by `beauty.py` |
 | `agent_tools/io_utils.py` | ~77 | Reading RAW (NEF via rawpy), TIFF, JPEG; writing 8/16-bit |
 | `evals/harness.py` | ~245 | Runs the agent on a set of photos and grades every stage |
 | `evals/ground_truth.py` | ~57 | Your Lightroom rotation/crop, recovered with SIFT matching |
 | `tests/` | ~520 | 63 pytest tests for the tools |
 | `samples/` | | Style library photos and `SOURCES.md` (credits and licences) |
-| `docs/` | | Composition rules, PixCake study, these reports |
+| `docs/` | | Composition rules, face-panel study, beauty design, these reports |
 
 ## 4. How the agent loop works (`agent.py`)
 

@@ -38,3 +38,6 @@ github_release/
 
 # downloaded demo inputs and their agent runs
 demo/
+
+# local Claude Code permissions
+.claude/settings.local.json

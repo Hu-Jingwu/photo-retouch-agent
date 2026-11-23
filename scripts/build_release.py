@@ -14,7 +14,8 @@ OUT = ROOT / "github_release"
 
 FILES = ["README.md", "LICENSE", "NOTICE.md", "requirements.txt", ".env.example", ".gitignore", "agent.py",
          "samples/README.md", "samples/SOURCES.md", "samples/film.jpg", "samples/epic_landscape.jpg",
-         "luts/SOURCE_README.md", "luts/profiles.json", "models/.gitkeep"]
+         "luts/SOURCE_README.md", "luts/profiles.json", "models/.gitkeep", "mcp_server.py",
+         ".claude/skills/photo-retouch/SKILL.md"]
 GLOBS = ["agent_tools/*.py", "evals/*.py", "tests/*.py", "scripts/*.py", "docs/*.md", "docs/images/*.jpg",
          "luts/*.png"]
 NEVER = (".env", ".NEF", ".nef", ".dng", ".tif", ".tiff", "ground_truth.json", "label_overrides.json",

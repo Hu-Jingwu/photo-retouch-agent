@@ -55,13 +55,13 @@
 | `agent_tools/color.py` | ~990 | C：测量、色彩流水线、富士 LUT、样片追色、人脸色偏 |
 | `agent_tools/styles.py` | ~205 | 风格记忆：11 种样片风格和风格判断 |
 | `agent_tools/people.py` | ~590 | D：MediaPipe 蒙版、整体补光、磨皮、瘦脸瘦身、人像检查 |
-| `agent_tools/face.py` | ~485 | 仅作函数库（人脸子 agent 已删除）：像素蛋糕式五官工具 |
+| `agent_tools/face.py` | ~485 | 五官工具（皮肤、脸型、眼睛、牙齿），由 `beauty.py` 调用 |
 | `agent_tools/io_utils.py` | ~77 | 读 RAW（NEF，用 rawpy）、TIFF、JPEG；写 8/16 位 |
 | `evals/harness.py` | ~245 | 在一组照片上跑 agent，并给每个阶段打分 |
 | `evals/ground_truth.py` | ~57 | 用 SIFT 匹配，从你的 Lightroom 导出反推你的旋转和裁剪 |
 | `tests/` | ~520 | 63 个 pytest 测试 |
 | `samples/` | | 样片库和 `SOURCES.md`（来源与版权） |
-| `docs/` | | 构图规则、像素蛋糕研究、本报告 |
+| `docs/` | | 构图规则、五官面板研究、美颜设计、本报告 |
 
 ## 4. Agent 循环怎么工作（`agent.py`）
 

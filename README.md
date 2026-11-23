@@ -91,6 +91,80 @@ every model message and tool call. Reading the trace is the best way to see what
 **Style library**: two openly licensed samples are included; add your own for the other styles, see
 [samples/README.md](samples/README.md).
 
+## Use it from Claude Code, ChatGPT (Codex) or WorkBuddy
+
+`mcp_server.py` serves the same tools over MCP (Model Context Protocol). Your AI app's own model
+then does the orchestrator's job (the job `hy4-flash` does in `agent.py`), so no Hunyuan API key is
+needed. The tools, the checks and the run folder are the same, and the server always feeds each
+tool the right intermediate file. The app's model must be able to see images: overlays, contact
+sheets and before/after sheets come back as images.
+
+The server has 19 tools: `start_edit`, the agent's 17 tools, and `finish_edit`. `start_edit` returns
+the full workflow, so any MCP client can follow it. Clients that support MCP prompts also get it as
+the `retouch_workflow` prompt.
+
+First install the requirements (they include the `mcp` package) and run the model setup, as in
+[Setup](#setup). In the commands below, replace `C:\path\to\photo-retouch-agent` with your own folder.
+On macOS/Linux, use `.venv/bin/python`.
+
+### Claude Code
+
+```powershell
+cd C:\path\to\photo-retouch-agent
+claude mcp add photo-retouch -- C:\path\to\photo-retouch-agent\.venv\Scripts\python.exe C:\path\to\photo-retouch-agent\mcp_server.py
+```
+
+Start `claude` in the project folder and check that `/mcp` lists `photo-retouch`. The repository
+includes a skill (`.claude/skills/photo-retouch/SKILL.md`), so you can simply ask:
+
+> 修一下 D:\photos\portrait.jpg：拉平、裁切、调色，然后做写真美颜
+
+### ChatGPT desktop app / Codex CLI
+
+The ChatGPT desktop app (Codex), the Codex CLI and the Codex IDE extension share one MCP
+configuration:
+
+```powershell
+codex mcp add photo-retouch -- C:\path\to\photo-retouch-agent\.venv\Scripts\python.exe C:\path\to\photo-retouch-agent\mcp_server.py
+```
+
+You can also add it to `~/.codex/config.toml` yourself:
+
+```toml
+[mcp_servers.photo-retouch]
+command = 'C:\path\to\photo-retouch-agent\.venv\Scripts\python.exe'
+args = ['C:\path\to\photo-retouch-agent\mcp_server.py']
+```
+
+Then ask: *"Use the photo-retouch tools: start_edit on D:\photos\portrait.jpg and follow its workflow.
+Level, crop, correct colour, and do a 写真 beauty retouch."*
+
+ChatGPT on the web (chatgpt.com) cannot start local programs. It only connects to remote MCP servers
+over HTTPS, in developer mode. That would mean putting this server on the internet, which these
+instructions don't cover.
+
+### WorkBuddy
+
+WorkBuddy connects to MCP servers by URL. Start the server in HTTP mode and keep that window open:
+
+```powershell
+C:\path\to\photo-retouch-agent\.venv\Scripts\python.exe C:\path\to\photo-retouch-agent\mcp_server.py --http 8765
+```
+
+In WorkBuddy, open **Connections → Custom connections → Configure MCP** (this edits
+`~/.workbuddy/mcp.json`), add the server, then **Save**:
+
+```json
+{
+  "mcpServers": {
+    "photo-retouch": { "url": "http://127.0.0.1:8765/mcp" }
+  }
+}
+```
+
+Turn it on under **My MCP**, then ask as above. The server listens only on your own computer
+(127.0.0.1).
+
 ## Evaluate and test
 
 ```powershell
@@ -108,10 +182,12 @@ under 0.5° error. It also grades the crop, colour and retouch with the same rul
 | Path | What |
 |---|---|
 | `agent.py` | system prompt, tool-calling loop, path pinning, final JSON |
+| `mcp_server.py` | the same tools as an MCP server for Claude Code, Codex / ChatGPT, WorkBuddy |
+| `.claude/skills/photo-retouch/` | Claude Code skill: when and how to use the tools |
 | `agent_tools/` | the tools: `horizon`, `composition`, `color`, `styles`, `people`, `face`, `beauty`, `registry` |
 | `evals/` | evaluation harness and ground truth from Lightroom exports |
 | `tests/` | pytest tests |
-| `docs/` | composition rules, reports, PixCake face-panel study |
+| `docs/` | composition rules, reports, face-panel study, beauty design |
 | `luts/`, `samples/` | film LUTs and style samples, with their licences |
 
 ## Licence and credits

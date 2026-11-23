@@ -153,6 +153,20 @@ COLOR_TOOLS = ("analyze_color", "preview_variants", "preview_looks", "render_adj
 PEOPLE_TOOLS = ("detect_people", "preview_retouch", "apply_retouch")
 
 
+def new_state() -> dict[str, Any]:
+    """Where each stage's result lives, so every tool reads the right input (shared with mcp_server.py)."""
+    return {"applied_angle": 0.0, "rotations": 0, "valid_rect": None,
+            "output_path": None, "check_level": None,
+            "crop_rect": None, "final_path": None, "preview_path": None,
+            "crops": 0, "color_path": None, "color_params": None,
+            "retouch_path": None, "retouch": None, "beauty_path": None, "beauty": None}
+
+
+def final_path(state: dict) -> str | None:
+    return (state["beauty_path"] or state["retouch_path"] or state["color_path"] or state["final_path"]
+            or state["output_path"])
+
+
 def _openai_tools() -> list[dict]:
     return [{"type": "function",
              "function": {"name": t["name"], "description": t["description"],
@@ -205,11 +219,7 @@ class LevelingAgent:
         src = Path(image_path).resolve()
         run_dir = Path(run_dir or ROOT / "runs" / f"{src.stem}_{time.strftime('%Y%m%d_%H%M%S')}")
         run_dir.mkdir(parents=True, exist_ok=True)
-        state: dict[str, Any] = {"applied_angle": 0.0, "rotations": 0, "valid_rect": None,
-                                 "output_path": None, "check_level": None,
-                                 "crop_rect": None, "final_path": None, "preview_path": None,
-                                 "crops": 0, "color_path": None, "color_params": None,
-                                 "retouch_path": None, "retouch": None, "beauty_path": None, "beauty": None}
+        state = new_state()
         self._usage = usage = {"prompt_tokens": 0, "completion_tokens": 0}
         trace: list[dict] = []
 
@@ -286,7 +296,7 @@ class LevelingAgent:
             "retouch": state["retouch"],
             "retouch_choice": final.get("retouch"),
             "beauty": state["beauty"],
-            "final_path": state["beauty_path"] or state["retouch_path"] or state["color_path"] or state["final_path"] or state["output_path"],
+            "final_path": final_path(state),
             "preview_path": state["preview_path"],
             "steps": len(trace),
             "tool_calls": sum(len(t["tool_calls"]) for t in trace),
@@ -302,7 +312,8 @@ class LevelingAgent:
         return result
 
     # ------------------------------------------------------------------ #
-    def _call_tool(self, name: str, args: dict, src: Path, run_dir: Path, state: dict):
+    @staticmethod
+    def _call_tool(name: str, args: dict, src: Path, run_dir: Path, state: dict):
         """Run a tool, pinning file paths so the model can't scatter files or compound rotations."""
         if name == "estimate_tilt":
             args.setdefault("image_path", str(src))
@@ -388,7 +399,8 @@ class LevelingAgent:
                                      "source": args["image_path"]})
         return text, is_err
 
-    def _result_images(self, name: str, res: dict, state: dict) -> list[dict]:
+    @staticmethod
+    def _result_images(name: str, res: dict, state: dict) -> list[dict]:
         if name in ("estimate_tilt", "check_level") and res.get("overlay_path"):
             return [_image_part(res["overlay_path"])]
         if name == "apply_rotation":           # let the model see the leveled frame

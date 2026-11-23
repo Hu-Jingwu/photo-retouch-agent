@@ -1,4 +1,4 @@
-# 网红脸 / 像素蛋糕写真 beauty retouch: design
+# 网红脸 / 写真 beauty retouch: design
 
 Status (2026-11-23): step 1–2 built. `beauty_retouch` is a tool of the main agent
 (`agent_tools/beauty.py`, tests in `tests/test_beauty.py`). Makeup, contour, double chin and the
@@ -6,7 +6,7 @@ Status (2026-11-23): step 1–2 built. `beauty_retouch` is a tool of the main ag
 
 ## 1. What the look is made of
 
-A 像素蛋糕 写真 / 网红 portrait is not one effect. It is six layers, and each layer needs a
+A 写真 / 网红 portrait is not one effect. It is six layers, and each layer needs a
 different kind of tool:
 
 | layer | what people notice | kind of tool |
@@ -23,7 +23,7 @@ different kind of tool:
 | module | what it gives | layer |
 |---|---|---|
 | `face.py` | `measure_face`, `render_faces` with `acne_spots, dark_circles, eye_bags, oil_shine, nasolabial, smoothing, texture_keep, tone_unify, luminous, whitening, rosy` | 1, 2 |
-| `face.py` | warps `face_slim, small_face, v_face, jaw, chin_length, cheekbone, eye_size, nose_size, nose_wings, mouth_size` (gains calibrated against PixCake on DSC_6390) | 3 |
+| `face.py` | warps `face_slim, small_face, v_face, jaw, chin_length, cheekbone, eye_size, nose_size, nose_wings, mouth_size` (gains calibrated against a professionally retouched export of a test photo) | 3 |
 | `face.py` | `eye_brighten, iris, eye_whites, teeth_whiten` | 4 |
 | `face.py` | `face_checks`: identity (shift ≤ 6% face width, eyes ×0.8–1.2 area, nose 0.85–1.1, mouth 0.88–1.1), teeth L* ≤ 92, no halo, texture kept, background not warped | guards |
 | `people.py` | masks, `subject_light` relight, `body_slim` | light, body |
@@ -101,7 +101,7 @@ shape or eye-detail edits. Every slider comes back with a one-line reason (`why`
 
 Level maxima:
 
-| param | natural | xiezhen (= PixCake 写真) | wanghong |
+| param | natural | xiezhen (a typical 写真 one-click preset) | wanghong |
 |---|---|---|---|
 | acne_spots | 80 | 100 | 100 |
 | smoothing / texture_keep | 35 / 60 | 70 / 45 | 75 / 40 |
@@ -150,7 +150,7 @@ A private test portrait (one face, 11% of the frame high); every guard passed wi
 |---|---|---|
 | makeup: `lip_tint`, `blush` | 网红 lip and cheek colour | lip polygon from landmarks, a/b shift at low strength keeping texture; blush = soft ellipse below cheekbones |
 | contour: `highlight`, `shadow` (立体) | soft dodge & burn | low-frequency luminance only: nose bridge, forehead, chin up; under cheekbones, jaw edge down; ≤ 0.15 EV |
-| `double_chin` | 祛双下巴 (PixCake 写真 uses 70) | upward warp of the submental band + lifting its shadow, only when chin and neck are visible |
+| `double_chin` | 祛双下巴 (typical 写真 presets use about 70) | upward warp of the submental band + lifting its shadow, only when chin and neck are visible |
 | `long_legs` | 长腿 | vertical stretch below the hips ≤ 5%, only with no strong straight lines there |
 | 写真 colour styles | `xiezhen_airy` 日系通透, `xiezhen_cream` 奶油, `xiezhen_coolwhite` 冷白 | new library styles; need your sample photos |
 
@@ -164,4 +164,4 @@ It invents pixels, which rules can't check.
 3. `makeup` + `contour` (new params in `face.render_faces`, planned by level).
 4. 写真 colour styles (needs samples).
 5. `double_chin`, `long_legs`.
-6. Calibrate the targets against more PixCake 写真 exports (`evals/calibrate_pixcake.py`).
+6. Calibrate the targets against more professionally retouched 写真 exports (the calibration script in `evals/`).
