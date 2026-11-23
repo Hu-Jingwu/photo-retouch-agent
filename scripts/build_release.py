@@ -1,4 +1,4 @@
-"""Copy exactly the publishable files into github_release/ (for a GitHub upload without git).
+"""Copy exactly the publishable files into github_release/ (the git working copy that is pushed).
 
     python scripts/build_release.py
 
@@ -22,8 +22,12 @@ NEVER = (".env", ".NEF", ".nef", ".dng", ".tif", ".tiff", "ground_truth.json", "
 
 
 def main() -> None:
+    # Clear the old copy but keep .git: github_release/ is the git working copy that gets pushed.
     if OUT.exists():
-        shutil.rmtree(OUT)
+        for child in OUT.iterdir():
+            if child.name == ".git":
+                continue
+            shutil.rmtree(child) if child.is_dir() else child.unlink()
     paths = [ROOT / f for f in FILES] + [p for g in GLOBS for p in sorted(ROOT.glob(g))]
     total = 0
     for p in paths:

@@ -130,13 +130,23 @@ Workflow:
     Judge the face close-up: natural, skin texture still visible, same person, shapes only slightly
     changed. Never exaggerate slimming. If a check fails (halo, texture, warp), lower that setting.
 15. Call apply_retouch with your final preset/params.
+    If the user asked for 美颜 / 写真 / 网红脸 (step 15b follows), call apply_retouch WITHOUT a preset:
+    only your local adjustments and body_slim, because beauty_retouch does the face skin itself
+    (smoothing twice makes skin plastic).
+15b. Only when the user asks for face beauty (美颜, 精修, 像素蛋糕写真, 网红脸): call beauty_retouch with the
+    level the user's words mean: 自然 / natural / light -> natural; 写真 / 精修 / PixCake -> xiezhen;
+    网红 / 网红脸 / strong -> wanghong. Put what the user does not want in `avoid` (眼睛不要放大 -> eyes,
+    不要瘦脸 -> shape). It plans, checks and repairs by itself; look at its close-up sheet: same person,
+    real skin, natural eyes. Call it again with `avoid` / `params` only if something clearly looks off
+    (at most 2 calls). Without a beauty request, never call it.
 
 16. Finish with ONLY a JSON object, no other text:
    {"decision": "rotated" or "skipped", "angle_deg": <total applied angle, 0 if skipped>,
     "reference": "<which lines you trusted>", "reason": "<one sentence>",
     "crop": {"candidate_id": <id or null>, "aspect": "<w:h>", "reason": "<one sentence>"},
     "color": {"recipe": "<name or null>", "strength": <0..1>, "reason": "<one sentence>"},
-    "retouch": {"preset": "<name or null>", "local": "<what you changed locally or null>", "reason": "<one sentence>"}}"""
+    "retouch": {"preset": "<name or null>", "local": "<what you changed locally or null>", "reason": "<one sentence>"},
+    "beauty": {"level": "<natural|xiezhen|wanghong or null>", "avoid": [<groups>], "reason": "<one sentence>"}}"""
 
 COLOR_TOOLS = ("analyze_color", "preview_variants", "preview_looks", "render_adjustments", "apply_color",
                "match_reference", "suggest_styles", "apply_style")
@@ -199,7 +209,7 @@ class LevelingAgent:
                                  "output_path": None, "check_level": None,
                                  "crop_rect": None, "final_path": None, "preview_path": None,
                                  "crops": 0, "color_path": None, "color_params": None,
-                                 "retouch_path": None, "retouch": None}
+                                 "retouch_path": None, "retouch": None, "beauty_path": None, "beauty": None}
         self._usage = usage = {"prompt_tokens": 0, "completion_tokens": 0}
         trace: list[dict] = []
 
@@ -275,7 +285,8 @@ class LevelingAgent:
             "color_choice": final.get("color"),
             "retouch": state["retouch"],
             "retouch_choice": final.get("retouch"),
-            "final_path": state["retouch_path"] or state["color_path"] or state["final_path"] or state["output_path"],
+            "beauty": state["beauty"],
+            "final_path": state["beauty_path"] or state["retouch_path"] or state["color_path"] or state["final_path"] or state["output_path"],
             "preview_path": state["preview_path"],
             "steps": len(trace),
             "tool_calls": sum(len(t["tool_calls"]) for t in trace),
@@ -340,6 +351,14 @@ class LevelingAgent:
                 args["sheet_path"] = str(run_dir / f"{name}_{n}.jpg")
             else:
                 args["output_path"] = str(run_dir / f"{src.stem}_retouch.tif")
+        elif name == "beauty_retouch":
+            # beauty works on the people retouch (relight) if there is one, never on a previous beauty
+            # result, so repeated calls never stack
+            args["image_path"] = (state["retouch_path"] or state["color_path"] or state["final_path"]
+                                  or state["output_path"] or str(src))
+            n = len(list(run_dir.glob("beauty_sheet_*.jpg")))
+            args["sheet_path"] = str(run_dir / f"beauty_sheet_{n}.jpg")
+            args["output_path"] = str(run_dir / f"{src.stem}_beauty.tif")
 
         text, is_err = dispatch(name, args)
         if not is_err:
@@ -361,6 +380,12 @@ class LevelingAgent:
                              retouch={"preset": args.get("preset"), "params": args.get("params"),
                                       "checks": res["checks"], "info": res["info"],
                                       "source": args["image_path"]})
+            elif name == "beauty_retouch" and res.get("output_path"):
+                state.update(beauty_path=res["output_path"], preview_path=res["preview_path"],
+                             beauty={"level": res["level"], "avoid": args.get("avoid"), "params": args.get("params"),
+                                     "sliders": {f: v["sliders"] for f, v in res["faces"].items()},
+                                     "repairs": res["repairs"], "checks_failed": res["checks_failed"],
+                                     "source": args["image_path"]})
         return text, is_err
 
     def _result_images(self, name: str, res: dict, state: dict) -> list[dict]:
@@ -379,6 +404,8 @@ class LevelingAgent:
         if name == "detect_people":
             return [_image_part(res["overlay_path"])]
         if name == "preview_retouch":
+            return [_image_part(res["sheet_path"], max_side=1600)]
+        if name == "beauty_retouch" and res.get("sheet_path"):
             return [_image_part(res["sheet_path"], max_side=1600)]
         return []   # analyze_color: numbers only; the model has just seen the cropped preview
 

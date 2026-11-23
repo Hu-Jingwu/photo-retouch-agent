@@ -11,7 +11,7 @@ import json
 import traceback
 from typing import Any, Callable
 
-from . import color, composition, horizon, people, styles
+from . import beauty, color, composition, horizon, people, styles
 
 _REGION_SCHEMA = {
     "type": "object",
@@ -326,10 +326,36 @@ TOOLS += [
     },
 ]
 
+TOOLS += [
+    {
+        "name": "beauty_retouch",
+        "description": (
+            "Face beauty retouch (美颜: 像素蛋糕写真 / 网红脸), ONLY when the user asks for it. One call does "
+            "everything in Python: measures each face, plans slider values that fill only the gap to a "
+            "target face (a face that already has big eyes gets no eye enlarging), renders, runs the guards "
+            "(same person, eyes/nose/mouth change small, pores kept, symmetry, plausible proportions, "
+            "background lines straight, no halo), lowers the sliders that broke a guard, and writes the "
+            "full-resolution result. Levels: natural (自然: clean skin, bright eyes, no shape change), "
+            "xiezhen (写真: PixCake's 写真 values), wanghong (网红: strongest the guards allow). "
+            "Look at the returned close-up sheet. If something looks off, call again (it always starts "
+            "from the same input, nothing stacks) with `avoid` groups or explicit `params`."),
+        "input_schema": {"type": "object", "properties": {
+            "image_path": {"type": "string"},
+            "level": {"type": "string", "enum": list(beauty.LEVELS)},
+            "avoid": {"type": "array", "items": {"type": "string", "enum": list(beauty.GROUPS)},
+                      "description": "slider groups to leave untouched, e.g. the user said 眼睛不要放大 -> ['eyes']"},
+            "params": {"type": "object", "description": (
+                "explicit slider values 0..100 that override the plan for every face, e.g. "
+                "{\"eye_size\": 15, \"smoothing\": 50}. Keys: " + ", ".join(beauty.F.ALL_KEYS))}},
+            "required": ["image_path", "level"], "additionalProperties": False},
+    },
+]
+
 _HANDLERS: dict[str, Callable[..., dict]] = {
     "detect_people": people.detect_people,
     "preview_retouch": people.preview_retouch,
     "apply_retouch": people.apply_retouch,
+    "beauty_retouch": beauty.beauty_retouch,
     "analyze_color": color.analyze_color,
     "preview_variants": color.preview_variants,
     "preview_looks": color.preview_looks,
