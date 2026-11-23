@@ -42,7 +42,7 @@ Orchestrator LLM  ──tool calls──►  A  Leveling      estimate_tilt · a
   when the user asks for a style. The skin colour of faces is limited to ±20 white-balance units.
 - **D · People**: MediaPipe masks for relighting the whole person, natural skin smoothing, light
   slimming, and skin-colour correction. Checks catch halos and faces that are lit separately.
-  On request, `beauty_retouch` does a 像素蛋糕写真 / 网红脸 style face retouch (see below).
+  On request, `beauty_retouch` does a 写真 / 网红脸 style face retouch (see below).
 
 ## Beauty retouch (美颜: 写真 / 网红脸)
 
@@ -53,7 +53,7 @@ Orchestrator LLM  ──tool calls──►  A  Leveling      estimate_tilt · a
 [Flickr](https://www.flickr.com/photos/yulucs/4930631837/). Changes: leveled, cropped, colour-corrected
 and face-retouched by this agent at the 写真 (xiezhen) level.*
 
-Instruction: *"Level, crop and correct this portrait, then do a 像素蛋糕写真 beauty retouch (写真精修)."*
+Instruction: *"Level, crop and correct this portrait, then do a beauty retouch (写真精修)."*
 The model rotated the photo 1.34° (it trusted the vertical lines, not the car body), chose a medium
 close-up, removed a green cast and called `beauty_retouch` at the 写真 level.
 
