@@ -24,6 +24,7 @@ from mcp import types
 from mcp.server.fastmcp import FastMCP
 
 import agent
+from agent_tools import deliver
 from agent_tools.registry import TOOLS
 
 ROOT = Path(__file__).resolve().parent
@@ -67,11 +68,33 @@ EXTRA_TOOLS = [
             "feedback": {"type": "string", "description": "what the user wants changed"}},
             "required": ["run_dir", "feedback"], "additionalProperties": False}),
     types.Tool(name="finish_edit", description=(
-        "Finish the edit: writes trace.json into the run folder and returns final_path (the 16-bit TIFF of the "
-        "last applied stage) and what was applied."),
+        "Finish the edit: re-applies stale stages, writes trace.json, Lightroom sidecars for the edit and for "
+        "every stage (<photo>.xmp, lightroom/<n>_<stage>/), a social-size JPEG of the result, and a line in the "
+        "run index. Returns final_path and what was applied, exported and what Lightroom cannot show."),
         inputSchema={"type": "object", "properties": {
-            "summary": {"type": "object", "description": "the final JSON object described in the workflow"}},
+            "summary": {"type": "object", "description": "the final JSON object described in the workflow"},
+            "export": {"type": "array", "items": {"type": "string", "enum": ["social", "print", "full"]},
+                       "description": "qualities of the final picture to write (default ['social'])"}},
             "required": ["summary"], "additionalProperties": False}),
+    types.Tool(name="list_runs", description=(
+        "Earlier edits, newest first: photo, time, request, which stages were applied, run_dir, plus small "
+        "previews of their results. Use it when the user refers to an earlier edit ('上周那张海边的照片', "
+        "'the one from yesterday'): match by name, time, request and the previews."),
+        inputSchema={"type": "object", "properties": {
+            "photo": {"type": "string", "description": "part of the photo's file name, optional"},
+            "limit": {"type": "integer", "minimum": 1, "maximum": 30}},
+            "additionalProperties": False}),
+    types.Tool(name="get_stage", description=(
+        "One stage of an earlier (or the current, after finish_edit) edit, at an export quality. stage: "
+        "rotation/拉平, crop/裁切, color/调色, retouch/人像, beauty/美颜, blur/虚化, or final/最终. quality: "
+        "social (2048 px JPEG, 1-2.5 MB, no metadata), print (full-size JPEG 95), full (the 16-bit TIFF), "
+        "lightroom (that stage's Camera Raw sidecar; next_to_raw copies it beside the RAW, never replacing one)."),
+        inputSchema={"type": "object", "properties": {
+            "run_dir": {"type": "string"},
+            "stage": {"type": "string"},
+            "quality": {"type": "string", "enum": ["social", "print", "full", "lightroom"]},
+            "next_to_raw": {"type": "boolean"}},
+            "required": ["run_dir", "stage"], "additionalProperties": False}),
 ]
 
 
@@ -115,7 +138,7 @@ def resume_edit(run_dir: str, feedback: str) -> list:
     return _content(text, imgs)
 
 
-def finish_edit(summary: dict) -> list:
+def finish_edit(summary: dict, export: list | None = None) -> list:
     if not SESSION:
         raise RuntimeError("no edit in progress: call start_edit first")
     st = SESSION["state"]
@@ -127,6 +150,7 @@ def finish_edit(summary: dict) -> list:
               "final_path": agent.final_path(st), "preview_path": st["preview_path"],
               "replayed": replayed, "feedback": SESSION.get("feedback"), "revised_from": SESSION.get("revised_from"),
               "tool_calls": len(SESSION["trace"]), "orchestrator": "MCP client", "run_dir": str(SESSION["run_dir"])}
+    result.update(agent.finish_run(SESSION["src"], SESSION["run_dir"], st, result, export or ["social"]))
     (SESSION["run_dir"] / "trace.json").write_text(
         json.dumps({"result": result, "state": st, "trace": SESSION["trace"]}, indent=1, ensure_ascii=False,
                    default=str),
@@ -134,7 +158,27 @@ def finish_edit(summary: dict) -> list:
     return _content(json.dumps(result, ensure_ascii=False, default=str), [])
 
 
+def list_runs(photo: str | None = None, limit: int = 8) -> list:
+    res = deliver.list_runs(photo, limit)
+    imgs = []
+    for r in res["runs"][:6]:                        # small previews so the model can match "the beach one"
+        p = r.get("preview_path") or r.get("final_path")
+        if p and Path(p).exists():
+            imgs.append(agent._image_part(p, max_side=384))
+    return _content(json.dumps(res, ensure_ascii=False, default=str), imgs)
+
+
+def get_stage(run_dir: str, stage: str, quality: str = "social", next_to_raw: bool = False) -> list:
+    res = deliver.get_stage(run_dir, stage, quality, next_to_raw)
+    imgs = [agent._image_part(res["path"], max_side=768)] if res.get("path", "").endswith(".jpg") else []
+    return _content(json.dumps(res, ensure_ascii=False, default=str), imgs)
+
+
 def call(name: str, args: dict) -> list:
+    if name == "list_runs":
+        return list_runs(**args)
+    if name == "get_stage":
+        return get_stage(**args)
     if name == "start_edit":
         return start_edit(**args)
     if name == "resume_edit":

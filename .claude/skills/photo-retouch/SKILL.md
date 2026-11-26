@@ -20,6 +20,11 @@ You are the orchestrator: the tools measure and execute, you decide, the rules g
    `beauty_retouch` only when the user asks for 美颜 / 写真 / 网红脸 (level natural / xiezhen / wanghong);
    background blur only on request, and always `analyze_depth` before `apply_background_blur`.
 5. Finish with `finish_edit` (summary = the final JSON from the workflow), then tell the user the
-   `final_path` and, in a few lines, what you changed and why.
+   `final_path` and, in a few lines, what you changed and why. It also writes a social-size JPEG and
+   Lightroom sidecars for the whole edit and for every stage; mention the ones the user may want.
+6. When the user later asks for a stage or a quality ("给我调色那一步的图", "要打印的大图", "Lightroom 文件"):
+   find the run with `list_runs` (match name, time, request and the previews), then call `get_stage`
+   with stage 拉平/裁切/调色/人像/美颜/虚化/最终 and quality social / print / full / lightroom. Say what a
+   Lightroom sidecar cannot show (its report lists it: beauty, blur, wrinkles stay in the TIFF).
 
 Do not run `agent.py` for this: it calls a different model (Hunyuan) through the API key in `.env`.

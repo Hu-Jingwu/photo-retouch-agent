@@ -13,7 +13,7 @@ def test_every_registry_tool_is_served_with_image_path_optional():
         assert "image_path" not in s.get("required", [])
         assert t["input_schema"].get("required") is not s.get("required")   # registry schema untouched
     names = [t.name for t in M.EXTRA_TOOLS]
-    assert names == ["start_edit", "resume_edit", "finish_edit"]
+    assert names == ["start_edit", "resume_edit", "finish_edit", "list_runs", "get_stage"]
 
 
 def test_tools_need_start_edit_first():

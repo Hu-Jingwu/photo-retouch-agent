@@ -282,6 +282,27 @@ def next_rev_dir(prev_dir: Path) -> Path:
     return prev_dir.parent / f"{base}_rev{n}"
 
 
+def finish_run(src: Path, run_dir: Path, state: dict, result: dict, export=("social",)) -> dict:
+    """Delivery after a run (shared with mcp_server.py): Lightroom sidecars for the edit and for every
+    stage, the requested export qualities of the final picture, and a line in runs/index.jsonl.
+    Nothing here can undo the edit, so failures are reported instead of raised."""
+    from agent_tools import deliver
+    out: dict = {"lightroom": deliver.write_footprints(src, state, run_dir), "exports": []}
+    final = final_path(state)
+    for q in export:
+        if not final or q == "lightroom":
+            continue
+        try:
+            out["exports"].append(deliver.export_image(final, q, Path(run_dir) / "exports" / f"{Path(src).stem}_final_{q}"))
+        except Exception as exc:                                   # noqa: BLE001
+            out["exports"].append({"quality": q, "error": f"{type(exc).__name__}: {exc}"})
+    try:
+        deliver.record_run({**result, **out, "run_dir": str(run_dir), "image": str(src)}, state)
+    except OSError as exc:
+        out["index_error"] = str(exc)
+    return out
+
+
 def prune_images(messages: list[dict], image_msgs: list[tuple[int, str]], keep: int) -> None:
     """Context management: replace all but the newest `keep` tool-image messages by a one-line note.
     The model has already looked at them and written down what it decided; re-sending every old
@@ -334,7 +355,8 @@ def _parse_final(text: str) -> dict:
 
 class LevelingAgent:
     def __init__(self, model: str | None = None, base_url: str | None = None,
-                 api_key: str | None = None, max_steps: int = 36, keep_images: int = 1):
+                 api_key: str | None = None, max_steps: int = 36, keep_images: int = 1,
+                 export: tuple[str, ...] = ("social",)):
         load_dotenv(ROOT / ".env")
         self.model = model or os.getenv("HY_MODEL")
         api_key = api_key or os.getenv("HY_API_KEY")
@@ -344,6 +366,7 @@ class LevelingAgent:
         self.client = OpenAI(api_key=api_key, base_url=base_url)
         self.max_steps = max_steps
         self.keep_images = keep_images      # tool-image messages kept in context (0 = keep all)
+        self.export = tuple(export)         # qualities written for the final picture (deliver.QUALITIES)
         # Some endpoints silently drop the system message for vision models.
         # HY_SYSTEM_IN_USER=1 sends the instructions inside the first user message instead.
         self.system_in_user = os.getenv("HY_SYSTEM_IN_USER", "0") == "1"
@@ -497,6 +520,7 @@ class LevelingAgent:
         }
         if final.get("decision") == "skipped" and state["rotations"]:
             result["warning"] = "model said skipped but a rotation was applied"
+        result.update(finish_run(src, run_dir, state, result, self.export))
         (run_dir / "trace.json").write_text(
             json.dumps({"result": result, "state": state, "trace": trace}, indent=1, ensure_ascii=False,
                        default=str), encoding="utf-8")
@@ -642,11 +666,14 @@ def main() -> None:
                     help="what to do; with --revise: the feedback, e.g. '脸再亮一点'")
     ap.add_argument("--revise", metavar="RUN_DIR", help="change an earlier run (runs/<photo>_<time>) after feedback")
     ap.add_argument("--max-steps", type=int, default=36)
+    ap.add_argument("--export", default="social",
+                    help="qualities for the final picture, comma separated: social, print, full (default social)")
     ap.add_argument("--keep-images", type=int, default=1,
                     help="tool-image messages kept in the model's context (0 = keep all, the old behaviour)")
     ap.add_argument("--reference", help="sample photo (样片) whose colour / exposure / curve to match")
     a = ap.parse_args()
-    agent = LevelingAgent(max_steps=a.max_steps, keep_images=a.keep_images)
+    agent = LevelingAgent(max_steps=a.max_steps, keep_images=a.keep_images,
+                          export=[q for q in a.export.split(",") if q])
     if a.revise:
         res = agent.revise(a.revise, a.instruction)
     elif a.image:

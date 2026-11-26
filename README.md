@@ -85,7 +85,7 @@ are re-applied before the run ends.
 
 ## Tools
 
-19 tools for the model, grouped by stage. Over MCP there are 3 more (see below).
+19 tools for the model, grouped by stage. Over MCP there are 5 more (see below).
 
 ### A · Leveling (拉平)
 
@@ -150,7 +150,9 @@ right behind her". The model judges that from the photo: a wall a step away gets
 |---|---|
 | `start_edit` | Starts an edit: creates the run folder and returns the full workflow and a preview of the photo. |
 | `resume_edit` | Revises an earlier run after feedback: returns the previous decisions and the current result. |
-| `finish_edit` | Re-applies stale stages, writes `trace.json` and returns the final file. |
+| `finish_edit` | Re-applies stale stages, writes `trace.json`, the Lightroom sidecars, a social-size JPEG and a line in the run index, and returns the final file. |
+| `list_runs` | Earlier edits, newest first, with small previews, so "上周那张海边的照片" can be matched. |
+| `get_stage` | Any stage of an earlier edit at any quality: social / print / full / lightroom. |
 
 Full explanations, written for learning: [English report](docs/REPORT_en.md) · [中文报告](docs/REPORT_zh.md).
 
@@ -190,6 +192,52 @@ records `prompt_tokens` per step.
 Each run writes `runs/<photo>_<time>/` with every intermediate image and `trace.json`, which records
 every model message and tool call. Reading the trace is the best way to see what the agent decided and why.
 
+## Exports and Lightroom (导出与 Lightroom)
+
+Every run ends with a delivery step:
+
+| What | Where |
+|---|---|
+| A social-size JPEG of the result (`--export social,print,full` for more) | `exports/<photo>_final_social.jpg` |
+| A Lightroom / Camera Raw sidecar for the whole edit | `<photo>.xmp` |
+| A sidecar for every stage, so a photographer can start from any step | `lightroom/1_rotation/`, `2_crop/`, `3_color/` … each with `<photo>.xmp` |
+| A line in the run index | `runs/index.jsonl` |
+
+| Quality | What you get |
+|---|---|
+| `social` | 2048 px long side, JPEG tuned into 1–2.5 MB, no metadata (so no GPS) |
+| `print` | full-size JPEG, quality 95 |
+| `full` | the 16-bit TIFF master |
+| `lightroom` | that stage's `.xmp` |
+
+Ask for any stage of any earlier edit later, by its English or Chinese name
+(拉平 裁切 调色 人像 美颜 虚化 最终):
+
+```powershell
+.\.venv\Scripts\python.exe -m agent_tools.deliver reindex                       # once, for older runs
+.\.venv\Scripts\python.exe -m agent_tools.deliver list photo
+.\.venv\Scripts\python.exe -m agent_tools.deliver get runs\photo_20261126_101500 调色 --quality social
+.\.venv\Scripts\python.exe -m agent_tools.deliver get runs\photo_20261126_101500 裁切 --quality lightroom --next-to-raw
+```
+
+This is a lookup, not a decision, so it is a plain tool, not a second agent: over MCP, your AI app
+calls `list_runs` and `get_stage` when you ask "给我调色那一步的图".
+
+**What carries over to Lightroom**
+
+| | Settings | How close |
+|---|---|---|
+| Exact | rotation angle, crop box, which sliders were used, tone curve points, HSL, colour grading | the same numbers in Camera Raw's own fields |
+| Approximate | exposure, contrast, highlights, shadows, whites, blacks, vibrance, saturation, white balance | same direction; each program has its own formula behind a slider of the same name. White balance is converted to Kelvin and tint with the camera's colour matrix |
+| Not in the sidecar | people relight, clothing wrinkles, beauty retouch (face shape, lipstick, contour), background blur, film LUTs | Camera Raw settings cannot express them; they are in that stage's 16-bit TIFF. Each sidecar's report lists them |
+
+To use a sidecar: put it next to the RAW with the RAW's name (`photo.NEF` + `photo.xmp`). In
+Lightroom, for a photo already in the catalogue: **Metadata › Read Metadata from File**. The tool never
+replaces a sidecar that is already there, since it may hold your own edits. Lightroom reads sidecars
+only for proprietary RAW files (.NEF, .CR2, .ARW…); DNG, JPEG and TIFF keep their settings inside the
+file, so for those the `.xmp` is a record only. The rotation sign and the crop position follow
+Camera Raw conventions as documented in `agent_tools/xmp.py`; check them once on a test photo.
+
 **Style library**: two openly licensed samples are included; add your own for the other styles, see
 [samples/README.md](samples/README.md).
 
@@ -201,8 +249,8 @@ needed. The tools, the checks and the run folder are the same, and the server al
 tool the right intermediate file. The app's model must be able to see images: overlays, contact
 sheets and before/after sheets come back as images.
 
-The server has 22 tools: `start_edit`, `resume_edit` (revise an earlier run after feedback), the
-agent's 19 tools, and `finish_edit`. `start_edit` returns
+The server has 24 tools: `start_edit`, `resume_edit` (revise an earlier run after feedback), the
+agent's 19 tools, `finish_edit`, and `list_runs` / `get_stage` (any stage of any earlier edit). `start_edit` returns
 the full workflow, so any MCP client can follow it. Clients that support MCP prompts also get it as
 the `retouch_workflow` prompt.
 
@@ -287,7 +335,7 @@ under 0.5° error. It also grades the crop, colour and retouch with the same rul
 | `agent.py` | system prompt, tool-calling loop, path pinning, final JSON |
 | `mcp_server.py` | the same tools as an MCP server for Claude Code, Codex / ChatGPT, WorkBuddy |
 | `.claude/skills/photo-retouch/` | Claude Code skill: when and how to use the tools |
-| `agent_tools/` | the tools: `horizon`, `composition`, `color`, `styles`, `people`, `face`, `beauty`, `depth`, `registry` |
+| `agent_tools/` | the tools: `horizon`, `composition`, `color`, `styles`, `people`, `face`, `beauty`, `depth`, `registry`; `xmp` writes Lightroom sidecars, `deliver` exports, indexes and finds runs |
 | `evals/` | evaluation harness and ground truth from Lightroom exports |
 | `tests/` | pytest tests |
 | `docs/` | composition rules, reports, face-panel study, beauty design |
