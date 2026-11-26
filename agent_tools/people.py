@@ -52,7 +52,7 @@ PRESETS = {
         "eye_brighten": 25, "face_slim": 25, "body_slim": 20},
 }
 RETOUCH_KEYS = ("skin_smoothing", "skin_even_tone", "skin_brighten", "blemish_removal",
-                "eye_brighten", "face_slim", "body_slim", "local")
+                "eye_brighten", "face_slim", "body_slim", "clothes_smooth", "local")
 REGIONS = ("subject_light", "person", "face", "skin", "hair", "clothes", "background")
 LOCAL_KEYS = ("exposure", "contrast", "highlights", "shadows", "saturation", "vibrance",
               "temperature", "tint")
@@ -336,6 +336,39 @@ def _even_tone(rgb, skin, fw, amount):
     return np.clip(out, 0, 1)
 
 
+def _nconv(x, m, sig):
+    """Gaussian blur of x using only pixels where m > 0 (normalised convolution)."""
+    return cv2.GaussianBlur(x * m, (0, 0), sig) / np.maximum(cv2.GaussianBlur(m, (0, 0), sig), 1e-4)
+
+
+def _clothes_smooth(rgb, clothes, fw, amount):
+    """衣服褶皱: a crease is soft shading at a middle scale. Split the clothes' lightness into fine
+    (fabric texture, kept), middle (creases, reduced) and large (the garment's light, kept) bands.
+    Prints, seams and logos have sharp or coloured edges and are protected; deep folds (arm against
+    body) are only softened a little."""
+    if amount <= 0 or fw <= 0 or clothes.max() < 0.5:
+        return rgb, 0.0
+    m = np.clip(clothes, 0, 1).astype(np.float32) ** 2
+    lab = C._lab(rgb)
+    L = lab[..., 0]
+    s_fine, s_large = max(1.0, fw * 0.012), max(4.0, fw * 0.35)
+    fine_less = _nconv(L, m, s_fine)
+    mid = fine_less - _nconv(L, m, s_large)
+    edge = cv2.GaussianBlur(np.abs(L - fine_less), (0, 0), s_fine * 3)            # print / seam detail
+    ga = np.hypot(cv2.Sobel(cv2.GaussianBlur(lab[..., 1], (0, 0), 1), cv2.CV_32F, 1, 0),
+                  cv2.Sobel(cv2.GaussianBlur(lab[..., 1], (0, 0), 1), cv2.CV_32F, 0, 1))
+    gb = np.hypot(cv2.Sobel(cv2.GaussianBlur(lab[..., 2], (0, 0), 1), cv2.CV_32F, 1, 0),
+                  cv2.Sobel(cv2.GaussianBlur(lab[..., 2], (0, 0), 1), cv2.CV_32F, 0, 1))
+    colour_edge = cv2.GaussianBlur(np.hypot(ga, gb), (0, 0), s_fine * 3)
+    protect = np.maximum(np.clip((edge - 1.5) / 2.5, 0, 1), np.clip((colour_edge - 3.0) / 6.0, 0, 1))
+    deep = 1.0 / (1.0 + (np.abs(mid) / 15.0) ** 2)
+    delta = -amount / 100 * 0.95 * mid * (1 - protect) * deep * m
+    lab[..., 0] = L + delta
+    out = np.clip(cv2.cvtColor(lab, cv2.COLOR_Lab2RGB), 0, 1)
+    sel = m > 0.5
+    return out, float(np.abs(delta)[sel].mean()) if sel.any() else 0.0
+
+
 def _brighten(rgb, mask, ev):
     if ev == 0:
         return rgb
@@ -452,6 +485,8 @@ def render_retouch(rgb, ana, params: dict) -> tuple[np.ndarray, dict]:
     out = _even_tone(out, m["skin"], fw, params["skin_even_tone"])
     out = _brighten(out, m["skin"], 0.35 * params["skin_brighten"] / 100)
     out = _brighten(out, m["eyes"], 0.4 * params["eye_brighten"] / 100)
+    if params["clothes_smooth"] > 0:
+        out, info["clothes_smoothed_L"] = _clothes_smooth(out, m["clothes"], fw, params["clothes_smooth"])
     dx, st = _warp_field(ana, params["face_slim"], params["body_slim"], out.shape[:2])
     out = _apply_warp(out, dx)
     info.update(st)
@@ -511,6 +546,15 @@ def retouch_checks(before, after, ana, info) -> list[dict]:
         hp = lambda im: np.abs(C._lab(im)[..., 0] - cv2.GaussianBlur(C._lab(im)[..., 0], (0, 0), 1.5))
         kept = float(hp(after)[skin].mean() / max(hp(before)[skin].mean(), 1e-6))
         add("skin texture kept", kept >= 0.35, round(kept, 2), "fine detail on face skin after/before (>= 0.35)")
+    if "clothes_smoothed_L" in info:
+        cl = m["clothes"] > 0.7
+        if cl.sum() > 200:
+            hp = lambda im: np.abs(C._lab(im)[..., 0] - cv2.GaussianBlur(C._lab(im)[..., 0], (0, 0), 1.5))
+            kept = float(hp(after)[cl].mean() / max(hp(before)[cl].mean(), 1e-6))
+            add("fabric texture kept", kept >= 0.85, round(kept, 2), "fine detail on clothes after/before (>= 0.85)")
+            la, lb = C._lab(after), C._lab(before)
+            dab = float(np.hypot(la[..., 1] - lb[..., 1], la[..., 2] - lb[..., 2])[cl].mean())
+            add("clothes colours and prints kept", dab <= 1.0, round(dab, 2), "mean colour change on clothes, Δab (<= 1)")
     add("face slimming subtle", info.get("face_max_shift_frac", 0) <= 0.04,
         round(info.get("face_max_shift_frac", 0), 4), "max jaw shift / face width (<= 4%)")
     add("body slimming subtle", info.get("body_max_shift_frac", 0) <= 0.03,

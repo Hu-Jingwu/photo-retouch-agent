@@ -25,6 +25,7 @@ Orchestrator LLM  ──tool calls──►  A  Leveling      estimate_tilt · a
         │                                           match_reference · suggest_styles · apply_style
         │                          D  People        detect_people · preview_retouch · apply_retouch
         │                                           beauty_retouch (美颜, only on request)
+        │                          E  Blur          analyze_depth · apply_background_blur (on request)
         │                                │
         └──── issues (2–3 retries) ◄── checks: tilt, composition rules, clipping, skin, sky,
                                          face colour shift, halo, texture, warping
@@ -42,7 +43,13 @@ Orchestrator LLM  ──tool calls──►  A  Leveling      estimate_tilt · a
   when the user asks for a style. The skin colour of faces is limited to ±20 white-balance units.
 - **D · People**: MediaPipe masks for relighting the whole person, natural skin smoothing, light
   slimming, and skin-colour correction. Checks catch halos and faces that are lit separately.
-  On request, `beauty_retouch` does a 写真 / 网红脸 style face retouch (see below).
+  On request, `beauty_retouch` does a 写真 / 网红脸 style face retouch with lipstick (口红) and contour
+  (立体) (see below), and `clothes_smooth` softens clothing wrinkles (衣服褶皱) while keeping fabric
+  texture and prints.
+- **E · Background blur (背景虚化)**: `analyze_depth` first judges the depth structure from defocus
+  (how much softer each area already is than the subject: Zhuo & Sim's edge re-blur method) and says
+  whether blur fits. `apply_background_blur` then uses a lens-like disc blur that grows with depth,
+  keeps the subject's colours out of the blur (no halo) and puts the grain back.
 
 ## Beauty retouch (美颜: 写真 / 网红脸)
 
@@ -83,7 +90,21 @@ copy .env.example .env                                  # then put your API key 
 # with a style from the library, or a sample photo to match
 .\.venv\Scripts\python.exe agent.py photo.NEF --instruction "胶片感 film style"
 .\.venv\Scripts\python.exe agent.py photo.NEF --reference my_sample.jpg
+# change an earlier edit: only the stages the feedback is about are redone
+.\.venv\Scripts\python.exe agent.py --revise runs\photo_20261126_101500 --instruction "脸再亮一点，不要瘦脸"
 ```
+
+**Revise (多轮修改)**: `--revise` loads the earlier run's state and decisions and shows the model the
+current result. The model redoes only what the feedback is about (for example the beauty retouch), and
+stages after the one it redid are re-applied with their previous settings, so a colour change never
+silently drops the retouch. The result goes to a new folder `runs/<run>_rev1/`.
+
+**Context management**: the model looks at every overlay and contact sheet once. After that, older
+tool images are replaced in its context by a one-line note saying what they were (`--keep-images`,
+default 1; 0 keeps everything). On the Hangzhou portrait this cut the input tokens of a 12-step run
+from 237,828 to 187,839 (-21%), with the same decisions. Most of what is left is fixed: the system
+prompt and the 17 tool descriptions (about 8.7k tokens) are sent again on every step. `trace.json`
+records `prompt_tokens` per step.
 
 Each run writes `runs/<photo>_<time>/` with every intermediate image and `trace.json`, which records
 every model message and tool call. Reading the trace is the best way to see what the agent decided and why.
@@ -99,7 +120,8 @@ needed. The tools, the checks and the run folder are the same, and the server al
 tool the right intermediate file. The app's model must be able to see images: overlays, contact
 sheets and before/after sheets come back as images.
 
-The server has 19 tools: `start_edit`, the agent's 17 tools, and `finish_edit`. `start_edit` returns
+The server has 22 tools: `start_edit`, `resume_edit` (revise an earlier run after feedback), the
+agent's 19 tools, and `finish_edit`. `start_edit` returns
 the full workflow, so any MCP client can follow it. Clients that support MCP prompts also get it as
 the `retouch_workflow` prompt.
 
@@ -184,7 +206,7 @@ under 0.5° error. It also grades the crop, colour and retouch with the same rul
 | `agent.py` | system prompt, tool-calling loop, path pinning, final JSON |
 | `mcp_server.py` | the same tools as an MCP server for Claude Code, Codex / ChatGPT, WorkBuddy |
 | `.claude/skills/photo-retouch/` | Claude Code skill: when and how to use the tools |
-| `agent_tools/` | the tools: `horizon`, `composition`, `color`, `styles`, `people`, `face`, `beauty`, `registry` |
+| `agent_tools/` | the tools: `horizon`, `composition`, `color`, `styles`, `people`, `face`, `beauty`, `depth`, `registry` |
 | `evals/` | evaluation harness and ground truth from Lightroom exports |
 | `tests/` | pytest tests |
 | `docs/` | composition rules, reports, face-panel study, beauty design |

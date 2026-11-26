@@ -32,15 +32,18 @@ LEVELS = {
     # 自然: clean skin and bright eyes, the face shape is never changed
     "natural": {**_SHAPE0, "acne_spots": 80, "dark_circles": 40, "oil_shine": 40, "nasolabial": 0,
                 "smoothing": 35, "texture_keep": 60, "tone_unify": 30, "luminous": 10, "whitening": 0,
-                "rosy": 0, "eye_brighten": 25, "iris": 0, "eye_whites": 20, "teeth_whiten": 25},
+                "rosy": 0, "eye_brighten": 25, "iris": 0, "eye_whites": 20, "teeth_whiten": 25,
+                "lipstick": 0, "contour": 0},
     # 写真: PixCake's own 写真 one-click values (face.PIXCAKE_XIEZHEN)
-    "xiezhen": {**_SHAPE0, **F.PIXCAKE_XIEZHEN, "texture_keep": 45, "rosy": 0, "v_face": 0, "chin_length": 0},
+    "xiezhen": {**_SHAPE0, **F.PIXCAKE_XIEZHEN, "texture_keep": 45, "rosy": 0, "v_face": 0, "chin_length": 0,
+                "lipstick": 30, "contour": 45},
     # 网红: the strongest look the identity caps allow
     "wanghong": {"acne_spots": 100, "dark_circles": 85, "oil_shine": 40, "nasolabial": 60,
                  "smoothing": 75, "texture_keep": 40, "tone_unify": 55, "luminous": 30, "whitening": 20,
                  "rosy": 20, "face_slim": 35, "v_face": 30, "jaw": 45, "small_face": 30, "chin_length": 15,
                  "eye_size": 55, "nose_size": 45, "nose_wings": 40, "mouth_size": 30,
-                 "eye_brighten": 50, "iris": 80, "eye_whites": 35, "teeth_whiten": 45},
+                 "eye_brighten": 50, "iris": 80, "eye_whites": 35, "teeth_whiten": 45,
+                 "lipstick": 50, "contour": 65},
 }
 
 # ---- target face (the "网红" proportions) and how big a gap counts as a full gap -------------
@@ -49,11 +52,17 @@ TARGET = {"eye_width_rel": (0.205, 0.03),     # larger eyes
           "nose_width_rel": (0.24, 0.04),     # narrower nose
           "jaw_to_cheek_ratio": (0.70, 0.12),  # narrower jaw (V-face)
           "face_aspect_h_w": (1.20, 0.15),    # slightly longer, oval face
-          "mouth_width_rel": (0.33, 0.05)}    # slightly smaller mouth
+          "mouth_width_rel": (0.33, 0.05),    # slightly smaller mouth
+          "lip_chroma": (34.0, 12.0),         # richer lip colour (C*)
+          "face_relief": (7.0, 4.0)}          # some light-and-shadow shape (flat light -> contour)
+LIP_SHADE = {"natural": "natural", "xiezhen": "rose", "wanghong": "red"}   # default per level
+LIP_FLOOR = {"natural": 25, "xiezhen": 35, "wanghong": 50}   # lipstick when the user names a shade
 
 GROUPS = {   # names the LLM can pass in `avoid`
     "skin": ["acne_spots", "dark_circles", "eye_bags", "oil_shine", "nasolabial", "smoothing", "tone_unify"],
-    "brighten": ["luminous", "whitening", "rosy"],
+    "brighten": ["luminous", "whitening"],
+    "makeup": ["lipstick", "rosy"],
+    "contour": ["contour"],
     "shape": ["face_slim", "v_face", "jaw", "small_face", "chin_length", "cheekbone"],
     "eyes": ["eye_size"],
     "eye_color": ["eye_brighten", "iris", "eye_whites"],
@@ -115,6 +124,12 @@ def plan_beauty(meas: dict, level: str = "xiezhen") -> tuple[dict, dict]:
     setk("chin_length", f_len, f"face height/width {meas['face_aspect_h_w']} (target {TARGET['face_aspect_h_w'][0]})")
     setk("mouth_size", _gap(meas["mouth_width_rel"], "mouth_width_rel", -1),
          f"mouth width {meas['mouth_width_rel']} of face (target {TARGET['mouth_width_rel'][0]})")
+    if "lip_chroma" in meas:
+        setk("lipstick", _gap(meas["lip_chroma"], "lip_chroma", +1),
+             f"lip colour C* {meas['lip_chroma']} (target {TARGET['lip_chroma'][0]})")
+    if "face_relief" in meas:
+        setk("contour", _gap(meas["face_relief"], "face_relief", +1),
+             f"face light-and-shadow {meas['face_relief']} L* (target {TARGET['face_relief'][0]})")
 
     # pose and size: warps on turned or tiny faces are risky and hardly visible
     if meas.get("facing", "camera") != "camera":
@@ -124,7 +139,7 @@ def plan_beauty(meas: dict, level: str = "xiezhen") -> tuple[dict, dict]:
         why["pose"] = "face turned: shape edits halved"
     fh = meas.get("face_height_frac", 1)
     if fh < 0.06:
-        for k in SHAPE_KEYS + ["teeth_whiten", "iris", "eye_whites"]:
+        for k in SHAPE_KEYS + ["teeth_whiten", "iris", "eye_whites", "lipstick", "contour"]:
             p[k] = 0
         why["size"] = f"face only {fh:.0%} of the frame high: shape and eye details skipped"
     return p, why
@@ -236,6 +251,9 @@ REPAIR = [
     ("nose change small", ["nose_size", "nose_wings"], 0.7),
     ("mouth change small", ["mouth_size"], 0.7),
     ("teeth natural", ["teeth_whiten"], 0.6),
+    ("lip colour natural", ["lipstick"], 0.6),
+    ("lipstick stays on the lips", ["lipstick"], 0.6),
+    ("contour subtle", ["contour"], 0.7),
     ("skin not plastic", ["smoothing"], 0.7),
     ("skin texture kept", ["smoothing"], 0.7),
     ("face not lit separately", ["luminous", "whitening"], 0.6),
@@ -247,7 +265,7 @@ REPAIR = [
 ]
 
 
-def _render_all(rgb, ana, plans):
+def _render_all(rgb, ana, plans, lip_shade="natural"):
     """Render each face with its own sliders. Brightening of all skin (luminous / whitening) acts on
     every person at once, so it runs only with the first face (with the strongest planned value)."""
     out, merged = rgb, {"identity": [], "faces_edited": [], "blemishes_removed": 0,
@@ -256,9 +274,12 @@ def _render_all(rgb, ana, plans):
     lum = max(p["luminous"] for p in plans.values())
     wht = max(p["whitening"] for p in plans.values())
     for n, (i, p) in enumerate(plans.items()):
-        q = F.normalize({**p, "luminous": lum if n == 0 else 0, "whitening": wht if n == 0 else 0})
+        q = F.normalize({**p, "luminous": lum if n == 0 else 0, "whitening": wht if n == 0 else 0,
+                         "lip_shade": lip_shade})
         out, info = F.render_faces(out, ana, q, face_ids=[i])
         merged["identity"] += info["identity"]
+        if "contour_max_ev" in info:
+            merged["contour_max_ev"] = max(merged.get("contour_max_ev", 0.0), info["contour_max_ev"])
         merged["faces_edited"] += info["faces_edited"]
         merged["blemishes_removed"] += info.get("blemishes_removed", 0)
         merged["_dx"] += info["_dx"]
@@ -269,7 +290,7 @@ def _render_all(rgb, ana, plans):
 
 
 def beauty_retouch(image_path: str, level: str = "xiezhen", avoid: list[str] | None = None,
-                   params: dict | None = None, face_ids: list[int] | None = None,
+                   params: dict | None = None, lip_shade: str | None = None, face_ids: list[int] | None = None,
                    output_path: str | None = None, sheet_path: str | None = None) -> dict:
     """Plan, render, guard and repair, then render at full resolution."""
     if level not in LEVELS:
@@ -277,6 +298,10 @@ def beauty_retouch(image_path: str, level: str = "xiezhen", avoid: list[str] | N
     bad = set(avoid or []) - set(GROUPS)
     if bad:
         raise ValueError(f"unknown avoid groups {bad}; valid: {list(GROUPS)}")
+    shade_asked = lip_shade is not None          # the user named a colour: it must show
+    lip_shade = lip_shade or LIP_SHADE[level]
+    if lip_shade not in F.LIP_SHADES:
+        raise ValueError(f"lip_shade must be one of {list(F.LIP_SHADES)}")
     for k in (params or {}):
         if k not in F.ALL_KEYS:
             raise ValueError(f"unknown face parameter {k!r}; valid: {list(F.ALL_KEYS)}")
@@ -298,13 +323,18 @@ def beauty_retouch(image_path: str, level: str = "xiezhen", avoid: list[str] | N
             for k in GROUPS[g]:
                 if k in plan:
                     plan[k] = 0
+        if shade_asked and "makeup" not in (avoid or []):
+            floor = LIP_FLOOR[level]
+            if plan.get("lipstick", 0) < floor:
+                plan["lipstick"] = floor
+                why["lipstick"] = f"shade {lip_shade} was asked for: at least {floor}"
         plan.update(params or {})           # explicit values from the LLM win
         plans[i], reasons[i], meas_all[i] = plan, why, meas
 
     # guard + repair loop at work size
     repairs = []
     for attempt in range(4):
-        out, info = _render_all(rgb, ana, plans)
+        out, info = _render_all(rgb, ana, plans, lip_shade)
         checks = beauty_checks(rgb, out, ana, info, faces)
         failed = [c for c in checks if c["status"] == "fail"]
         if not failed or attempt == 3:
@@ -330,7 +360,7 @@ def beauty_retouch(image_path: str, level: str = "xiezhen", avoid: list[str] | N
 
     # full resolution with the repaired sliders
     full, ana_full = P.load_full(image_path)
-    out_full, info_full = _render_all(full, ana_full, plans)
+    out_full, info_full = _render_all(full, ana_full, plans, lip_shade)
     if output_path is None:
         output_path = str(src.with_name(f"{src.stem}_beauty.tif"))
     write_image(output_path, (np.clip(out_full, 0, 1)[..., ::-1] * 65535 + 0.5).astype(np.uint16))
@@ -342,7 +372,7 @@ def beauty_retouch(image_path: str, level: str = "xiezhen", avoid: list[str] | N
 
     final_checks = checks
     return {"status": "done" if not failed else "checks_failed",
-            "level": level, "output_path": output_path, "preview_path": preview_path, "sheet_path": sheet_path,
+            "level": level, "lip_shade": lip_shade, "output_path": output_path, "preview_path": preview_path, "sheet_path": sheet_path,
             "faces": {str(i): {"measured": meas_all[i], "sliders": {k: v for k, v in plans[i].items()
                                                                    if (any(v) if isinstance(v, list) else v)},
                                "why": reasons[i]} for i in faces},

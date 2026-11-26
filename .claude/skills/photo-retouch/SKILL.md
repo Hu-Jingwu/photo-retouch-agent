@@ -12,11 +12,13 @@ You are the orchestrator: the tools measure and execute, you decide, the rules g
    `claude mcp add photo-retouch -- .venv/Scripts/python.exe mcp_server.py` (Windows) or
    `claude mcp add photo-retouch -- .venv/bin/python mcp_server.py` (macOS/Linux), then restart.
 2. Call `start_edit` with the absolute photo path and the user's request. Its result holds the full
-   workflow (A leveling → B crop → C colour → D people → 15b beauty). Follow it step by step.
+   workflow (A leveling → B crop → C colour → D people → 15b beauty → 15c background blur). Follow it
+   step by step. To change an earlier edit after feedback, use `resume_edit` instead of `start_edit`.
 3. Look at every image a tool returns (overlays, contact sheets, before/after sheets) before deciding.
    Do not skip a step's check tool, and never guess numbers you can preview.
 4. Style and beauty are the user's choice: no style library or look without a style request, and
-   `beauty_retouch` only when the user asks for 美颜 / 写真 / 网红脸 (level natural / xiezhen / wanghong).
+   `beauty_retouch` only when the user asks for 美颜 / 写真 / 网红脸 (level natural / xiezhen / wanghong);
+   background blur only on request, and always `analyze_depth` before `apply_background_blur`.
 5. Finish with `finish_edit` (summary = the final JSON from the workflow), then tell the user the
    `final_path` and, in a few lines, what you changed and why.
 

@@ -11,7 +11,7 @@ import json
 import traceback
 from typing import Any, Callable
 
-from . import beauty, color, composition, horizon, people, styles
+from . import beauty, color, composition, depth, horizon, people, styles
 
 _REGION_SCHEMA = {
     "type": "object",
@@ -282,7 +282,9 @@ _RETOUCH_SCHEMA = {
     "type": "object",
     "description": (
         "Retouch settings 0..100 (all optional): skin_smoothing (keeps pores), skin_even_tone, "
-        "skin_brighten, eye_brighten, face_slim, body_slim; blemish_removal: true/false. "
+        "skin_brighten, eye_brighten, face_slim, body_slim, clothes_smooth (衣服褶皱: softens creases, keeps "
+        "fabric texture, prints and seams; only when the user asks or for 写真精修, usually 40-70); "
+        "blemish_removal: true/false. "
         "local: list of edge-aware local adjustments, each {region, exposure (EV), contrast, highlights, "
         "shadows, saturation, vibrance, temperature, tint} with region in subject_light (whole person "
         "plus a soft natural fall-off into the nearby scene: use this to relight a dark subject), person, "
@@ -330,24 +332,58 @@ TOOLS += [
     {
         "name": "beauty_retouch",
         "description": (
-            "Face beauty retouch (美颜: 像素蛋糕写真 / 网红脸), ONLY when the user asks for it. One call does "
+            "Face beauty retouch (美颜: 写真 / 网红脸), ONLY when the user asks for it. One call does "
             "everything in Python: measures each face, plans slider values that fill only the gap to a "
             "target face (a face that already has big eyes gets no eye enlarging), renders, runs the guards "
             "(same person, eyes/nose/mouth change small, pores kept, symmetry, plausible proportions, "
             "background lines straight, no halo), lowers the sliders that broke a guard, and writes the "
             "full-resolution result. Levels: natural (自然: clean skin, bright eyes, no shape change), "
-            "xiezhen (写真: PixCake's 写真 values), wanghong (网红: strongest the guards allow). "
+            "xiezhen (写真: a typical 写真 one-click look), wanghong (网红: strongest the guards allow). "
+            "Includes makeup: lipstick (口红, planned from how rich the lips already are; shade via lip_shade) "
+            "and contour (立体: soft dodge & burn, planned from how flat the face light is). "
             "Look at the returned close-up sheet. If something looks off, call again (it always starts "
             "from the same input, nothing stacks) with `avoid` groups or explicit `params`."),
         "input_schema": {"type": "object", "properties": {
             "image_path": {"type": "string"},
             "level": {"type": "string", "enum": list(beauty.LEVELS)},
             "avoid": {"type": "array", "items": {"type": "string", "enum": list(beauty.GROUPS)},
-                      "description": "slider groups to leave untouched, e.g. the user said 眼睛不要放大 -> ['eyes']"},
+                      "description": "slider groups to leave untouched, e.g. the user said 眼睛不要放大 -> ['eyes'], "
+                                     "不要口红 -> ['makeup']"},
+            "lip_shade": {"type": "string", "enum": list(beauty.F.LIP_SHADES),
+                          "description": "lipstick shade (default: natural / rose / red by level); use the user's "
+                                         "words: 豆沙 -> rose, 橘色 -> coral, 正红 -> red, 莓果 -> berry"},
             "params": {"type": "object", "description": (
                 "explicit slider values 0..100 that override the plan for every face, e.g. "
                 "{\"eye_size\": 15, \"smoothing\": 50}. Keys: " + ", ".join(beauty.F.ALL_KEYS))}},
             "required": ["image_path", "level"], "additionalProperties": False},
+    },
+]
+
+TOOLS += [
+    {
+        "name": "analyze_depth",
+        "description": (
+            "判断景深构造 BEFORE background blur: measures how much softer (more defocused) every part of the "
+            "background already is than the person (depth from defocus). Returns a verdict "
+            "(already_shallow / sharp_background / mixed_depth / no_background_detail), a suggested blur "
+            "strength range, notes, and a depth map image (blue = focal plane, red = far). Call it only when "
+            "the user asks for 背景虚化 / bokeh, after the people and beauty steps."),
+        "input_schema": {"type": "object", "properties": {"image_path": {"type": "string"}},
+                         "required": ["image_path"], "additionalProperties": False},
+    },
+    {
+        "name": "apply_background_blur",
+        "description": (
+            "背景虚化: lens-like disc blur of everything except the people, scaled per area by the depth map "
+            "(far areas get more), with the subject's colours kept out of the blur (no halo) and matching "
+            "grain put back. Writes the full-resolution result and a before/after sheet with a close-up of "
+            "the subject's outline. strength 0-100 (stay inside analyze_depth's suggested range). Checks: "
+            "subject untouched, no halo, background softer. Call again with another strength if needed; it "
+            "always starts from the same input."),
+        "input_schema": {"type": "object", "properties": {
+            "image_path": {"type": "string"},
+            "strength": {"type": "number", "minimum": 0, "maximum": 100}},
+            "required": ["image_path", "strength"], "additionalProperties": False},
     },
 ]
 
@@ -356,6 +392,8 @@ _HANDLERS: dict[str, Callable[..., dict]] = {
     "preview_retouch": people.preview_retouch,
     "apply_retouch": people.apply_retouch,
     "beauty_retouch": beauty.beauty_retouch,
+    "analyze_depth": depth.analyze_depth,
+    "apply_background_blur": depth.apply_background_blur,
     "analyze_color": color.analyze_color,
     "preview_variants": color.preview_variants,
     "preview_looks": color.preview_looks,

@@ -50,7 +50,7 @@ GAIN = {"face_slim": 0.038, "jaw": 0.032, "eye_size": 0.098, "nose_size": 0.045,
 # ---- parameters ------------------------------------------------------------------------
 UNSIGNED = ("acne_spots", "dark_circles", "eye_bags", "oil_shine", "nasolabial", "smoothing",
             "texture_keep", "luminous", "whitening", "rosy", "tone_unify", "small_face", "jaw",
-            "eye_brighten", "iris", "eye_whites", "nose_wings", "teeth_whiten")
+            "eye_brighten", "iris", "eye_whites", "nose_wings", "teeth_whiten", "lipstick", "contour")
 SIGNED = ("chin_length", "nose_size", "mouth_size")
 PAIRED = ("face_slim", "v_face", "cheekbone", "eye_size")      # number or [right, left] (subject's)
 PAIRED_SIGNED = ("eye_size",)
@@ -89,15 +89,32 @@ PRESETS["pixcake_xiezhen_100"] = _scaled(PIXCAKE_XIEZHEN, 1.0)     # the full �
 PRESETS["pixcake_xiezhen_70"] = _scaled(PIXCAKE_XIEZHEN, 0.7)      # same direction at 70%: the user's taste
 
 
+# lipstick shades as target Lab (L*, a*, b*); "natural" = the lips' own hue, a little richer
+LIP_SHADES = {"natural": None, "rose": (52.0, 40.0, 14.0), "coral": (60.0, 42.0, 30.0),
+              "red": (46.0, 55.0, 32.0), "berry": (40.0, 42.0, 6.0)}
+OUTER_LIPS = P.LIPS
+# contour (立体) landmarks: highlights on the T-zone and cheek tops, shadows under the cheekbones and jaw
+NOSE_BRIDGE = [168, 6, 197, 195, 5]
+FOREHEAD_C, CHIN_C = 151, 175
+CHEEK_TOP_R, CHEEK_TOP_L = 50, 280
+HOLLOW_R, HOLLOW_L = [123, 147, 187], [352, 376, 411]
+
+
 def normalize(params: dict | None, preset: str | None = None) -> dict:
     out: dict = {k: 0.0 for k in UNSIGNED + SIGNED}
     out.update({k: [0.0, 0.0] for k in PAIRED})
     out["texture_keep"] = 50.0
+    out["lip_shade"] = "natural"
     if preset and preset not in PRESETS:
         raise ValueError(f"unknown preset {preset!r}; use one of {list(PRESETS)}")
     src = dict(PRESETS[preset]) if preset else {}
     src.update(params or {})
     for k, v in src.items():
+        if k == "lip_shade":
+            if v not in LIP_SHADES:
+                raise ValueError(f"lip_shade must be one of {list(LIP_SHADES)}")
+            out[k] = v
+            continue
         if k not in ALL_KEYS:
             raise ValueError(f"unknown face parameter {k!r}; valid: {list(ALL_KEYS)}")
         lo = -100 if (k in SIGNED or k in PAIRED_SIGNED) else 0
@@ -208,6 +225,12 @@ def measure_face(rgb, lm, face_skin) -> dict:
         if out["teeth_visible"]:
             out["teeth_L_b"] = [round(float(L[teeth].mean()), 1), round(float(lab[..., 2][teeth].mean()), 1)]
     out["symmetry_eye_size"] = round(min(ew_r, ew_l) / max(ew_r, ew_l, 1), 3)
+    lips = _lip_mask((h, w), lm, fw) > 0.5
+    if lips.sum() > 20:
+        out["lip_chroma"] = round(float(np.hypot(lab[..., 1], lab[..., 2])[lips].mean()), 1)
+    if sk.sum() > 50:     # how much light and shadow already shapes the face (flat light -> low)
+        low = cv2.GaussianBlur(L, (0, 0), max(1.0, fw * 0.08))
+        out["face_relief"] = round(float(low[sk].std()), 1)
     return out
 
 
@@ -216,6 +239,33 @@ def _under_eye_mask(shape, lm, lid, ew, sigma):
     lower = pts + np.array([0, 0.42 * ew], np.float32)
     poly = np.concatenate([pts, lower[::-1]], 0)
     return _poly_mask(shape, poly, sigma)
+
+
+def _lip_mask(shape, lm, fw):
+    """Lips only: outer lip contour minus the mouth opening (teeth, tongue), soft-edged."""
+    sig = max(0.5, fw * 0.006)
+    return np.clip(_poly_mask(shape, lm[OUTER_LIPS], sig) - _poly_mask(shape, lm[INNER_LIPS], sig), 0, 1)
+
+
+def _contour_masks(shape, lm, fw):
+    """(highlight, shadow) masks for 立体, each normalised to a peak of 1."""
+    th = max(1, int(fw * 0.04))
+    hl = np.zeros(shape, np.float32)
+    cv2.polylines(hl, [np.round(lm[NOSE_BRIDGE]).astype(np.int32)], False, 1.0, th)
+    for idx, r in ((FOREHEAD_C, 0.09), (CHIN_C, 0.05), (CHEEK_TOP_R, 0.05), (CHEEK_TOP_L, 0.05)):
+        cv2.circle(hl, tuple(int(v) for v in np.round(lm[idx])), max(1, int(fw * r)), 1.0, -1)
+    sh = np.zeros(shape, np.float32)
+    for line in (HOLLOW_R, HOLLOW_L):
+        cv2.polylines(sh, [np.round(lm[line]).astype(np.int32)], False, 1.0, max(1, int(fw * 0.06)))
+    cx = float(lm[NOSE_TIP, 0])
+    jaw = lm[P.JAW].copy()
+    jaw[:, 0] += np.sign(cx - jaw[:, 0]) * fw * 0.04          # just inside the jaw line
+    cv2.polylines(sh, [np.round(jaw).astype(np.int32)], False, 1.0, max(1, int(fw * 0.05)))
+    out = []
+    for m in (hl, sh):
+        m = cv2.GaussianBlur(m, (0, 0), max(1.0, fw * 0.05))
+        out.append(m / max(float(m.max()), 1e-6))
+    return out
 
 
 # ---- rendering -------------------------------------------------------------------------
@@ -290,6 +340,31 @@ def render_faces(rgb, ana, params: dict, face_ids=None) -> tuple[np.ndarray, dic
             lab = C._lab(out)
             lab[..., 1] += cheeks * skin * params["rosy"] / 100 * 5
             out = np.clip(cv2.cvtColor(lab, cv2.COLOR_Lab2RGB), 0, 1)
+
+        # -- makeup: lipstick moves the lips' colour toward a shade; lightness texture is kept
+        if params["lipstick"] > 0:
+            lips = _lip_mask((h, w), lm, fw)
+            sel = lips > 0.5
+            if sel.sum() > 20:
+                lab = C._lab(out)
+                Lm, am, bm = (float(lab[..., c][sel].mean()) for c in range(3))
+                shade = LIP_SHADES[params["lip_shade"]]
+                if shade is None:                                  # natural: own hue, richer
+                    gain = min(1.35, 45.0 / max(np.hypot(am, bm), 1.0))
+                    shade = (Lm, am * gain, bm * gain)
+                a = 0.65 * params["lipstick"] / 100 * lips
+                lab[..., 0] += a * 0.35 * (shade[0] - Lm)          # uniform shift: lip lines stay
+                lab[..., 1] += a * (shade[1] - lab[..., 1])
+                lab[..., 2] += a * (shade[2] - lab[..., 2])
+                out = np.clip(cv2.cvtColor(lab, cv2.COLOR_Lab2RGB), 0, 1)
+
+        # -- contour (立体): wide, low-frequency dodge & burn inside the face skin only
+        if params["contour"] > 0:
+            hl, sh = _contour_masks((h, w), lm, fw)
+            where = face_region * m["face_skin"] * (1 - m["features"])
+            ev = params["contour"] / 100 * (0.19 * hl - 0.17 * sh) * where
+            out = np.clip(out * np.power(2.0, ev)[..., None], 0, 1)
+            info["contour_max_ev"] = max(info.get("contour_max_ev", 0.0), float(np.abs(ev).max()))
 
         # -- eyes
         r_iris = [float(np.linalg.norm(lm[R_IRIS[0]] - lm[R_IRIS[2]])) / 2, float(np.linalg.norm(lm[L_IRIS[0]] - lm[L_IRIS[2]])) / 2]
@@ -454,6 +529,29 @@ def face_checks(before, after, ana, info) -> list[dict]:
         if teeth.sum() > 0.15 * max(inner.sum(), 1) and teeth.sum() > 20:
             tl = float(lab[..., 0][teeth].mean())
             add(f"face {i}: teeth natural (not paper-white)", tl <= 92, round(tl, 1), "teeth L* <= 92")
+    for i, p in enumerate(ana["people"]):
+        lm = p["landmarks"]
+        if lm is None or i not in info.get("faces_edited", []):
+            continue
+        fw = _face_geometry(lm)[0]
+        lab0 = C._lab(before)
+        outer = _poly_mask(after.shape[:2], lm[OUTER_LIPS], 0) > 0.5
+        lips = _lip_mask(after.shape[:2], lm, fw) > 0.5
+        if lips.sum() > 20:
+            chroma = float(np.hypot(lab[..., 1], lab[..., 2])[lips].mean())
+            add(f"face {i}: lip colour natural", chroma <= 60, round(chroma, 1), "lip chroma C* after (<= 60)")
+            k = max(3, int(fw * 0.03)) | 1
+            near = cv2.dilate(outer.astype(np.uint8), np.ones((k, k), np.uint8)) > 0
+            far = cv2.dilate(outer.astype(np.uint8), np.ones((3 * k, 3 * k), np.uint8)) > 0
+            near_ring, far_ring = near & ~outer, far & ~near
+            if near_ring.sum() > 20 and far_ring.sum() > 20:
+                dab = np.hypot(lab[..., 1] - lab0[..., 1], lab[..., 2] - lab0[..., 2])
+                spill = float(dab[near_ring].mean() - dab[far_ring].mean())
+                add(f"face {i}: lipstick stays on the lips", spill <= 2.0, round(spill, 2),
+                    "colour change just outside the lips minus a bit further out, Δab (<= 2)")
+    if "contour_max_ev" in info:
+        add("contour subtle", info["contour_max_ev"] <= 0.2, round(info["contour_max_ev"], 3),
+            "largest dodge/burn of the 立体 contour, EV (<= 0.2)")
     return checks
 
 

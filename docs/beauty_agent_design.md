@@ -1,8 +1,8 @@
 # 网红脸 / 写真 beauty retouch: design
 
-Status (2026-11-23): step 1–2 built. `beauty_retouch` is a tool of the main agent
-(`agent_tools/beauty.py`, tests in `tests/test_beauty.py`). Makeup, contour, double chin and the
-写真 colour styles are not built yet (section 8).
+Status (2026-11-26): steps 1–3 built. `beauty_retouch` is a tool of the main agent
+(`agent_tools/beauty.py`, tests in `tests/test_beauty.py` and `tests/test_portrait_tools.py`), now with
+lipstick and contour. Double chin, long legs and the 写真 colour styles are not built yet (section 8).
 
 ## 1. What the look is made of
 
@@ -148,8 +148,6 @@ A private test portrait (one face, 11% of the frame high); every guard passed wi
 
 | tool | what it does | how |
 |---|---|---|
-| makeup: `lip_tint`, `blush` | 网红 lip and cheek colour | lip polygon from landmarks, a/b shift at low strength keeping texture; blush = soft ellipse below cheekbones |
-| contour: `highlight`, `shadow` (立体) | soft dodge & burn | low-frequency luminance only: nose bridge, forehead, chin up; under cheekbones, jaw edge down; ≤ 0.15 EV |
 | `double_chin` | 祛双下巴 (typical 写真 presets use about 70) | upward warp of the submental band + lifting its shadow, only when chin and neck are visible |
 | `long_legs` | 长腿 | vertical stretch below the hips ≤ 5%, only with no strong straight lines there |
 | 写真 colour styles | `xiezhen_airy` 日系通透, `xiezhen_cream` 奶油, `xiezhen_coolwhite` 冷白 | new library styles; need your sample photos |
@@ -161,7 +159,7 @@ It invents pixels, which rules can't check.
 
 1. ✅ `beauty_retouch` tool + `plan_beauty` + guards + repair, wired into the agent (step 15b).
 2. ✅ Tests: planner, levels, protection, line bend, validation, real photo.
-3. `makeup` + `contour` (new params in `face.render_faces`, planned by level).
+3. ✅ `lipstick` (shades natural / rose / coral / red / berry) + `contour`, planned from lip colour and face relief; guards: lip colour natural, lipstick stays on the lips, contour ≤ 0.2 EV. Background blur and clothing wrinkles live in `depth.py` and `people.py`.
 4. 写真 colour styles (needs samples).
 5. `double_chin`, `long_legs`.
 6. Calibrate the targets against more professionally retouched 写真 exports (the calibration script in `evals/`).
